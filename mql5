@@ -1,0 +1,159 @@
+
+//+------------------------------------------------------------------+
+//|                                            Golden Hunter MT4.mq5 |
+//|                  Copyright 2022, Forex Robot Easy Team            |
+//|                                       Site: forexroboteasy.com    |
+//+------------------------------------------------------------------+
+
+// Indicator parameters
+input double SpreadLimit = 2.0; // Maximum allowable spread
+input double VolatilityLimit = 1.5; // Minimum required volatility
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Add indicator buffers for visualization
+    SetIndexBuffer(0, SpreadBuffer);
+    SetIndexBuffer(1, VolatilityBuffer);
+    
+    // Set indicator labels
+    IndicatorSetString(INDICATOR_SHORTNAME, 'Golden Hunter MT4');
+    
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator deinitialization function                       |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Remove indicator buffers
+    ArrayResize(SpreadBuffer, 0);
+    ArrayResize(VolatilityBuffer, 0);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator calculation function                            |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime& time[],
+                const double& open[],
+                const double& high[],
+                const double& low[],
+                const double& close[],
+                const long& tick_volume[],
+                const long& volume[],
+                const int& spread[])
+{
+    // Check if there is enough data
+    if (rates_total <= 0)
+        return(0);
+    
+    // Resize indicator buffers
+    ArrayResize(SpreadBuffer, rates_total);
+    ArrayResize(VolatilityBuffer, rates_total);
+    
+    // Calculate spread and volatility
+    for (int i = 0; i < rates_total; i++)
+    {
+        // Calculate spread
+        SpreadBuffer[i] = Ask - Bid;
+        
+        // Calculate volatility
+        VolatilityBuffer[i] = high[i] - low[i];
+    }
+    
+    // Check for optimal trading pairs
+    for (int i = rates_total - 1; i >= 0; i--)
+    {
+        // Check spread and volatility conditions
+        if (SpreadBuffer[i] <= SpreadLimit && VolatilityBuffer[i] >= VolatilityLimit)
+        {
+            // Check trading pair conditions
+            if (Symbol() == 'EURUSD' || Symbol() == 'GBPUSD' || Symbol() == 'BTCUSD')
+            {
+                // Generate trading recommendation
+                Print('Trading recommendation: Buy ', Symbol());
+                break; // Exit loop after finding the first optimal trading pair
+            }
+        }
+    }
+    
+    return(rates_total);
+}
+
+//+------------------------------------------------------------------+
+//| Expert Advisor start function                                     |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Get current time
+    datetime currentTime = TimeLocal();
+    
+    // Get current hour
+    int currentHour = Hour(currentTime);
+    
+    // Get current day of the week
+    int currentDayOfWeek = DayOfWeek(currentTime);
+    
+    // Check if it's daylight hours
+    if (currentHour >= 8 && currentHour <= 16)
+    {
+        // Check if it's a weekday
+        if (currentDayOfWeek >= 1 && currentDayOfWeek <= 5)
+        {
+            // Check if the market is active
+            if (IsTradeAllowed())
+            {
+                // Check if the market is not range-bound
+                if (!IsRangeBoundMarket())
+                {
+                    // Check for optimal trading pairs
+                    for (int i = 0; i < SymbolsTotal(); i++)
+                    {
+                        SymbolSelect(Symbol(i), true);
+                        
+                        // Calculate indicator values
+                        int calculated = IndicatorCalculate(0, 0, 0);
+                        
+                        // Check if there is enough data
+                        if (calculated > 0)
+                        {
+                            // Generate trading recommendation
+                            OnCalculate(calculated, 0, Time, Open, High, Low, Close, TickVolume, Volume, Spread);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Check if the market is range-bound                                |
+//+------------------------------------------------------------------+
+bool IsRangeBoundMarket()
+{
+    // Add your range detection logic here
+    
+    return(false); // Return false for testing purposes
+}
+
+//+------------------------------------------------------------------+
+//| Check if trading is allowed                                       |
+//+------------------------------------------------------------------+
+bool IsTradeAllowed()
+{
+    // Add your trading allowed logic here
+    
+    return(true); // Return true for testing purposes
+}
+
+//+------------------------------------------------------------------+
+//| Indicator buffers                                                  |
+//+------------------------------------------------------------------+
+double SpreadBuffer[];
+double VolatilityBuffer[];
